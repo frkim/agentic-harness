@@ -80,12 +80,14 @@ jobs:
           path: site/
           if-no-files-found: error
 
-      - name: Upload GitHub Pages artifact
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-pages-artifact@v5
+      - name: Upload deck as build artifact
+        uses: actions/upload-artifact@v6
         with:
+          name: agentic-harness-l300
           path: site/
-
+          if-no-files-found: error
+          overwrite: true
+          
   deploy:
     name: Deploy to GitHub Pages
     if: github.ref == 'refs/heads/main'
