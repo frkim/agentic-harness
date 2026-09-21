@@ -44,10 +44,15 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
 
+      # Install the exact Marp CLI version used by this workflow.
+      # No package.json or package-lock.json is required.
       - name: Install Marp CLI
-        run: npm install --no-save --no-package-lock @marp-team/marp-cli@${{ env.MARP_VERSION }}
+        run: |
+          npm install \
+            --no-save \
+            --no-package-lock \
+            @marp-team/marp-cli@${{ env.MARP_VERSION }}
 
       - name: Verify Marp version
         run: npx marp --version
