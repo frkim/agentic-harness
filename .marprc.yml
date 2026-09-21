@@ -1,0 +1,6 @@
+# Marp configuration for the decks in presentations/
+# Run marp from the repository root so this file is picked up:
+#   npx @marp-team/marp-cli presentations/agentic-harness-l300.md -o tmp/deck.html
+# html: true enables the two-column card layouts used by the Musher theme.
+themeSet: ./presentations/themes
+html: true
