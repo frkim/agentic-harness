@@ -11,9 +11,9 @@ The deck is [Marp](https://marp.app/) Markdown, per the presentation standard in
 
 ## Published deck
 
-[`publish-presentation.yml`](../.github/workflows/publish-presentation.yml) runs on every push to `main` that
-touches `presentations/**` or [`.marprc.yml`](../.marprc.yml) (and on demand via **Run workflow**). It exports
-the deck to HTML and to PDF with presenter notes, then deploys both to GitHub Pages:
+[`publish-presentation.yml`](../.github/workflows/publish-presentation.yml) validates every PR and every
+push to `main` (also on demand via **Run workflow**). It checks documentation and workflows, exports
+HTML and PDF with presenter notes, and captures selected slide screenshots. Only main deploys to Pages:
 
 - Slides: <https://frkim.github.io/agentic-harness/>
 - PDF with presenter notes: <https://frkim.github.io/agentic-harness/agentic-harness-l300.pdf>
@@ -31,20 +31,28 @@ does not read it, add `"markdown.marp.themes": ["./presentations/themes/musher.c
 
 ## Export from the command line
 
-Run from the repository root so that `.marprc.yml` (theme set and `html: true`) is picked up:
+Install the [prerequisites](../README.md#build-and-validate), then run from the repository root
+so that `.marprc.yml` (theme set and `html: true`) is picked up:
 
 ```bash
-# HTML (speaker view included: press "p" in the browser)
-npx @marp-team/marp-cli presentations/agentic-harness-l300.md -o tmp/agentic-harness-l300.html
+npm ci
+
+# HTML (site/index.html; press "p" for speaker view)
+npm run build:html
 
 # PDF with presenter notes attached
-npx @marp-team/marp-cli presentations/agentic-harness-l300.md --pdf --pdf-notes -o tmp/agentic-harness-l300.pdf
+npm run build:pdf
 
 # PowerPoint
-npx @marp-team/marp-cli presentations/agentic-harness-l300.md --pptx -o tmp/agentic-harness-l300.pptx
+npm run build:pptx
+
+# All lint, link, workflow, build, and screenshot checks
+npm run validate
 ```
 
-`tmp/` is git-ignored — build artefacts stay out of the repository.
+`site/`, `tmp/`, and `test-results/` are git-ignored — build artefacts stay out of the repository.
+Inspect the screenshots from `test-results/` locally or the `slide-review` CI artifact.
+They are selected-slide review evidence, not an automated guarantee against overflow.
 
 ## Speaking notes
 
@@ -58,4 +66,7 @@ Every slide carries presenter notes in HTML comments. They are shown in the Marp
 - Diagrams in the deck are monospaced text blocks so that they render in every Marp output format; the
   [Mermaid](https://mermaid.js.org/) versions live in [`../docs/agentic-harness.md`](../docs/agentic-harness.md)
   and render on GitHub.
-- Keep the deck and the document in sync: the deck is the guided tour, the document is the reference.
+- Keep the deck and the document in sync: the deck is **manually derived**, not generated;
+  no guide-to-deck generation script is checked in. The document is the reference.
+- The agenda includes four introductory minutes, 51 minutes across seven legs, and five
+  minutes for the close/Q&A. Keep the facilitator map aligned when slides move.

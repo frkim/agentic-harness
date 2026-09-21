@@ -1,0 +1,40 @@
+{
+  "name": "agentic-harness",
+  "version": "1.0.0",
+  "description": "Documentation and a conference-ready deck about the **agentic harness**: the engineering system — context, capabilities, orchestration, verification, guardrails, and telemetry — that turns a general-purpose coding model into a dependable contributor to your codebase.",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "npm run build:html && npm run build:pdf",
+    "build:html": "marp presentations/agentic-harness-l300.md --output site/index.html",
+    "build:pdf": "marp presentations/agentic-harness-l300.md --pdf --pdf-notes --output site/agentic-harness-l300.pdf",
+    "build:pptx": "marp presentations/agentic-harness-l300.md --pptx --output tmp/agentic-harness-l300.pptx",
+    "lint:md": "markdownlint-cli2 \"*.md\" \"docs/**/*.md\" \"presentations/**/*.md\"",
+    "lint:links": "remark --use remark-validate-links --frail --no-stdout \"*.md\" \"docs/**/*.md\" \"presentations/**/*.md\"",
+    "lint:yaml": "prettier --check .marprc.yml .github/dependabot.yml \".github/workflows/*.yml\"",
+    "lint:workflows": "go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -color",
+    "lint": "npm run lint:md && npm run lint:links && npm run lint:yaml && npm run lint:workflows",
+    "test": "playwright test",
+    "validate": "npm run lint && npm run build && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/frkim/agentic-harness.git"
+  },
+  "license": "UNLICENSED",
+  "type": "module",
+  "overrides": {
+    "@puppeteer/browsers": "3.2.2",
+    "@xmldom/xmldom": "0.9.12"
+  },
+  "devDependencies": {
+    "@marp-team/marp-cli": "4.5.1",
+    "@playwright/test": "1.63.0",
+    "markdownlint-cli2": "0.23.3",
+    "prettier": "3.9.8",
+    "remark-cli": "12.0.1",
+    "remark-validate-links": "13.1.0"
+  }
+}

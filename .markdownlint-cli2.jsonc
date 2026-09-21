@@ -1,0 +1,16 @@
+{
+  "config": {
+    "default": true,
+    // Reference tables and text diagrams are deliberately wider than prose.
+    "MD013": false,
+    // Marp slides have multiple top-level headings and embedded layouts.
+    "MD024": { "siblings_only": true },
+    "MD025": false,
+    "MD033": false,
+    // Bold callouts label checklist groups without adding TOC entries.
+    "MD036": false,
+    // remark-validate-links checks local files and GitHub-style anchors.
+    "MD051": false,
+    "MD060": false
+  }
+}

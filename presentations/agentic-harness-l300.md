@@ -55,6 +55,7 @@ The ratio tells you how much time to spend on Part 2 versus Part 6. Note it, the
 
 | # | Leg | Time |
 | --- | --- | --- |
+| — | Trailhead — welcome, audience, agenda, mental model | 4 min |
 | 1 | Same dogs, different finish — what a harness *is* | 6 min |
 | 2 | **Context engineering** — the gangline | 11 min |
 | 3 | Capabilities — tools, MCP, environment | 7 min |
@@ -180,12 +181,14 @@ across 40 engineers is worth far more, because you can improve it systematically
 | Episode boundary | Task scoping, checkpoints, budgets |
 | Safety constraints | Permissions, sandbox, gates, protected branches |
 
-**You cannot retrain the policy. You fully control the environment.**
+**You can shape the environment, even when model weights are fixed.**
 
-> Most "the model isn't good enough" complaints are, on inspection, environment design defects.
+> Diagnose context, tools, and feedback first — a heuristic, not proof that the model is never the limit.
 
 <!--
 This is the intellectual centre of the talk. If an architect in the room remembers one slide, make it this one.
+The RL framing is an analogy: running tests does not train the model. SWE-agent (Yang et al., 2024,
+https://arxiv.org/abs/2405.15793) studies interface design on specific coding benchmarks, not all failure causes.
 Concrete example to offer: a team blamed the model for "ignoring our API conventions" — the conventions existed
 only in a Confluence page the agent could not read. Ten lines in an instruction file closed the gap.
 -->
@@ -491,7 +494,7 @@ at the clock. Coming back to the room's answers during Q&A makes the session con
 3. **Deterministic and idempotent** — a retry must not double-apply an effect
 4. **Informative errors** — the error text *is* a prompt: what failed, and what a valid call looks like
 5. **Bounded output** — truncate and paginate; a 5 MB log dump evicts the plan from the window
-6. **Small, non-overlapping catalogue** — tool confusion grows super-linearly with near-duplicates
+6. **Small, non-overlapping catalogue** — near-duplicates can confuse selection; measure on your tasks
 
 > Every tool you add expands both what the agent can achieve and what it can break.
 
@@ -513,7 +516,7 @@ Treat every MCP server as a **production dependency**:
 - **Scope the credentials** — short-lived, read-only where possible
 - **Enumerate and prune the tools** it exposes
 - **Treat every response as untrusted input** (we return to this in Part 6)
-- **Log every invocation** with arguments — for audit and for eval replay
+- **Log invocations safely** — allowlisted, redacted arguments; restricted access and time-limited retention
 
 > "Enable them all and see what happens" is how you get tool confusion *and* a larger attack surface.
 
@@ -545,8 +548,8 @@ for tasks rather than for endpoints. Wrapping 60 REST endpoints as 60 tools is t
 
 <!--
 L400 operational point: instrument environment setup separately from the task and alert on its failure rate.
-Setup failure is the single biggest source of "the agent did nothing useful" incidents, and it is invisible if
-you only measure PR outcomes.
+Setup failure can block all useful work, but its prevalence varies. Measure local failure categories rather
+than asserting a universal ranking; PR outcomes alone can hide setup failures.
 -->
 
 ---
@@ -801,14 +804,17 @@ delete — but never leave them red, because you are training your whole team, h
    recurring review finding
             │
             ▼
-   can a machine catch it? ──yes──► lint rule · test · CodeQL query ──┐
-            │                                                          ├─► green CI
-            └──no───────────────► instruction file or skill ───────────┘   enforces it
-                                                                            forever
+   can a machine catch it? ──yes──► required check: covered cases
+            │
+            └──no───────────────► instructions + human review
+
+   Both paths: measure recurrence, maintain coverage, revise guidance.
 ```
 
 > **Rule of three:** the third time a human writes the same review comment on an agent PR,
 > it becomes a rule or a check.
+
+**Instructions advise. Required checks gate only what they cover.**
 
 Anything else is manual labour with extra steps.
 
@@ -971,21 +977,33 @@ on when someone proposes a new dashboard: if a number moving does not tell you w
 
 ---
 
-## An eval harness for your harness
+<!-- _class: compact -->
 
-Changing an instruction file *is* a change to the system. Treat it like one:
+## A worked harness evaluation
 
-1. Curate **golden tasks** — 10–30 real, already-solved issues with known-good diffs
-2. Run them against the **candidate harness** in a clean sandbox
-3. Score automatically where possible — tests pass, checks green, diff scope, cost
-4. **Compare to the previous version**; ship only if the score improves
-5. Keep the set fresh — retire tasks the harness has memorised
+**Illustrative, not measured here:** 5 tasks × 4 trials × 2 variants.
+Same model, tasks, budgets; fresh sandboxes. C adds setup commands + an API map.
 
-> Without this, harness tuning is folklore: "I think the new prompt is better."
+| Measure | Baseline B | Candidate C |
+| --- | --- | --- |
+| Accepted, checks-green, safe, within budget | 12/20 (60%) | 16/20 (80%) |
+| Total cost, including failures | $80 | $88 |
+| Cost / attempt; cost / success | $4.00; $6.67 | $4.40; $5.50 |
+| Mean time; setup / API / timeout failures | 8 min; 4 / 3 / 1 | 9 min; 1 / 2 / 1 |
+
+Gate: ≥10-point success gain, ≤15% cost/attempt increase, no new severe safety failures.
+**Pilot, don't generalize:** +20 points, +10% cost; retest on held-out tasks.
 
 <!--
-This is the L400 differentiator, and where most organisations are not yet. Start small: five golden tasks and a
-spreadsheet beats nothing, and it converts harness debates from opinion into evidence.
+Guide §9.1 contains the per-task counts, controls, and failure analysis. These numbers and dollar costs
+are synthetic, not benchmark results or vendor pricing. Both variants have zero severe safety failures
+in this example. Alternate B/C order, record model/repo revisions, and count failed attempts in costs.
+Success requires task acceptance tests, required checks, reviewer-approved scope, safety, and the time budget.
+Five task clusters are insufficient for a broad claim: collect more tasks and ablate C's two changes.
+Keep a fresh golden set of 10–30 real solved tasks for ongoing evaluation, with repeated trials.
+Log metadata and allowlisted arguments only: redact secrets, environment values, personal data, and payloads
+before storage. Restrict and audit access; set a deletion owner and expiry (e.g. 30 days for diagnostics),
+including exports/backups. Longer-lived eval evidence needs explicit review and approval, not indefinite logs.
 -->
 
 ---
@@ -1169,7 +1187,7 @@ one more time — people photograph URLs, not conclusions.
 - `agents.md` · `modelcontextprotocol.io` · OWASP Top 10 for LLM Applications
 - GitHub docs: Copilot coding agent · CodeQL · secret scanning · branch protection
 
-### Questions
+## Questions
 
 <!--
 Hold 5 minutes. The three questions that always come:
