@@ -35,7 +35,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       # Marp CLI runs from the repository root so that .marprc.yml (theme set, html: true) applies.
       # Chrome is preinstalled on ubuntu-latest and is auto-detected for the PDF export.
