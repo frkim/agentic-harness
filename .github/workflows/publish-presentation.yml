@@ -1,0 +1,110 @@
+name: Publish presentation
+
+# Builds the Marp deck (HTML + PDF) and publishes it to GitHub Pages.
+# The HTML deck is served as the site index, with the PDF next to it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'presentations/**'
+      - '.marprc.yml'
+      - '.github/workflows/publish-presentation.yml'
+
+  pull_request:
+    paths:
+      - 'presentations/**'
+      - '.marprc.yml'
+      - '.github/workflows/publish-presentation.yml'
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '24'
+  MARP_VERSION: '4.5.1'
+  DECK: 'presentations/agentic-harness-l300.md'
+
+jobs:
+  build:
+    name: Build deck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Install the exact Marp CLI version used by this workflow.
+      # No package.json or package-lock.json is required.
+      - name: Install Marp CLI
+        run: |
+          npm install \
+            --no-save \
+            --no-package-lock \
+            @marp-team/marp-cli@${{ env.MARP_VERSION }}
+
+      - name: Verify Marp version
+        run: npx marp --version
+
+      - name: Create output directory
+        run: mkdir -p site
+
+      # Marp runs from the repository root so .marprc.yml is automatically applied.
+      - name: Build HTML deck
+        run: |
+          npx marp "$DECK" \
+            --output site/index.html
+
+      - name: Build PDF deck with presenter notes
+        run: |
+          npx marp "$DECK" \
+            --pdf \
+            --pdf-notes \
+            --output site/agentic-harness-l300.pdf
+
+      - name: Upload deck as build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: agentic-harness-l300
+          path: site/
+          if-no-files-found: error
+
+      # The Pages deployment needs its own dedicated artifact; the build artifact
+      # above is only for downloading the deck from a pull request run.
+      - name: Upload GitHub Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site/
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.ref == 'refs/heads/main'
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
