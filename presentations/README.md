@@ -7,6 +7,20 @@ The deck is [Marp](https://marp.app/) Markdown, per the presentation standard in
 | --- | --- |
 | [`agentic-harness-l300.md`](agentic-harness-l300.md) | 60-minute L300–L400 deck, with presenter notes and a facilitator timing map |
 | [`themes/musher.css`](themes/musher.css) | The **Musher** theme: arctic night, snowfield, aurora, headlamp amber |
+| [`../.github/workflows/publish-presentation.yml`](../.github/workflows/publish-presentation.yml) | CI build of the deck and deployment to GitHub Pages |
+
+## Published deck
+
+[`publish-presentation.yml`](../.github/workflows/publish-presentation.yml) runs on every push to `main` that
+touches `presentations/**` or [`.marprc.yml`](../.marprc.yml) (and on demand via **Run workflow**). It exports
+the deck to HTML and to PDF with presenter notes, then deploys both to GitHub Pages:
+
+- Slides: <https://frkim.github.io/agentic-harness/>
+- PDF with presenter notes: <https://frkim.github.io/agentic-harness/agentic-harness-l300.pdf>
+
+Pull requests run the build too — without deploying — and attach the result as the `agentic-harness-l300`
+workflow artefact, so a deck change can be reviewed before it is merged. GitHub Pages must be set to
+**Source: GitHub Actions** in the repository settings for the deployment to succeed.
 
 ## Preview in VS Code
 

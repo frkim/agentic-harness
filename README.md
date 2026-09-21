@@ -15,6 +15,16 @@ model into a dependable contributor to your codebase.
 | [`presentations/themes/musher.css`](presentations/themes/musher.css) | The **Musher** Marp theme — arctic night, snowfield, aurora, headlamp amber |
 | [`presentations/README.md`](presentations/README.md) | How to preview and export the deck |
 | [`.marprc.yml`](.marprc.yml) | Marp CLI configuration (theme set, HTML enabled) |
+| [`.github/workflows/publish-presentation.yml`](.github/workflows/publish-presentation.yml) | Builds the deck and publishes it to GitHub Pages |
+
+## Read the deck online
+
+Every push to `main` that touches the deck rebuilds it and publishes it to GitHub Pages:
+
+- Slides: <https://frkim.github.io/agentic-harness/>
+- PDF with presenter notes: <https://frkim.github.io/agentic-harness/agentic-harness-l300.pdf>
+
+Enable it once per repository under **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 
 ## Build the deck
 
