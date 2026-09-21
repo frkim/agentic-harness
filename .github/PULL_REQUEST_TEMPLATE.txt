@@ -1,0 +1,11 @@
+## Summary
+
+## Verification evidence
+
+- [ ] Updated the guide and manually maintained deck together, or explained why only one changed.
+- [ ] Ran `npm ci` and `npm run validate`; included commands, exit status, and any limitations.
+- [ ] Reviewed the HTML, PDF, and selected slide screenshots for layout and timing.
+- [ ] Qualified claims and distinguished illustrative evaluation data from measured results.
+- [ ] Included no generated outputs, credentials, or sensitive logs.
+
+Evidence / exceptions:

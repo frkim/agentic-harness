@@ -6,7 +6,8 @@ A reference guide to designing, operating, and hardening the engineering system 
 agents. Level: **L300 – L400** (practitioner to architect).
 
 Companion deck: [`presentations/agentic-harness-l300.md`](../presentations/agentic-harness-l300.md) — a 60
-minute Marp presentation generated from this document.
+minute Marp presentation **manually derived** from this document. No generation script is checked in;
+shared content changes must be reflected in both the guide and the deck.
 
 Reference implementation of most artefacts named here:
 [`frkim/ai-coding-standards`](https://github.com/frkim/ai-coding-standards).
@@ -49,7 +50,8 @@ dependable contributor to *your* codebase. It is everything the model does not b
 
 ### 1.1 Model ≠ outcome
 
-Two teams using the identical model get wildly different results. The delta is the harness.
+Two teams using the identical model can get different results. The harness is one important variable,
+alongside task difficulty, model limitations, and team expertise.
 
 | Dimension | Weak harness | Strong harness |
 | --- | --- | --- |
@@ -61,9 +63,13 @@ Two teams using the identical model get wildly different results. The delta is t
 | Measurement | "It feels faster" | First-pass CI green rate, revert rate, cycle time |
 
 > **L400 framing.** The model is a *policy*; the harness is the *environment* that policy acts in. You cannot
-> retrain the policy, but you fully control the environment — its observations (context), action space (tools),
-> reward signal (tests and checks), and episode boundaries (task scoping). Almost every "the model is not good
-> enough" complaint is, on inspection, an environment design defect.
+> usually change a hosted model's weights, but you can shape its observations (context), action space (tools),
+> feedback signal (tests and checks), and episode boundaries (task scoping). This is an analogy, not a claim
+> that running CI trains the model. **Diagnostic heuristic:** investigate context, tooling, and feedback before
+> attributing a failure to model quality; reasoning limits and task ambiguity can remain.
+>
+> [SWE-agent's interface study](https://arxiv.org/abs/2405.15793) provides task-specific evidence that interface
+> design affects agent performance. It does not establish that most failures are environmental.
 
 ### 1.2 The three failure modes a harness must prevent
 
@@ -303,7 +309,9 @@ The action space defines what the agent can achieve and what it can break.
 3. **Deterministic and idempotent.** Re-running a tool after a retry must not double-apply an effect.
 4. **Informative errors.** The error text is a prompt: say what failed *and* what a valid call looks like.
 5. **Bounded output.** Truncate and paginate; a 5 MB log dump evicts the plan from the context window.
-6. **Small, non-overlapping catalogues.** Tool confusion grows super-linearly with near-duplicate tools.
+6. **Small, non-overlapping catalogues.** Near-duplicate tools can make selection ambiguous. Treat pruning as
+   a heuristic to evaluate on your tasks, not a proven super-linear scaling law (see the
+   [interface study](https://arxiv.org/abs/2405.15793) and [§9.1](#91-an-eval-harness-for-your-harness)).
 
 ### 5.2 Model Context Protocol (MCP)
 
@@ -314,7 +322,8 @@ observability. Treat every MCP server as a production dependency:
 - **Scope the credentials** the server receives; prefer short-lived tokens and read-only scopes.
 - **Enumerate the tools** it exposes; disable the ones the team does not need.
 - **Treat every response as untrusted input** — see [§8.2](#82-prompt-injection-the-primary-new-threat).
-- **Log invocations** with arguments for audit and for eval replay.
+- **Log invocations** with allowlisted, redacted arguments for audit and eval replay; apply the access and
+  retention controls in [§9.2](#92-what-to-log).
 
 ### 5.3 The agent environment
 
@@ -341,8 +350,9 @@ Checklist:
 - [ ] Egress is allowlisted; the sandbox is ephemeral and holds no long-lived secrets.
 - [ ] Throwaway scripts land in a git-ignored `tmp/scripts/` folder, never in the shipped tree.
 
-> **L400 note.** Environment setup failures are the single largest source of "the agent did nothing useful"
-> incidents. Instrument setup separately from the task, and alert on its failure rate.
+> **L400 heuristic.** Setup failures can prevent any useful task work. Their prevalence depends on the
+> environment; no cross-team ranking is claimed here. Instrument setup separately from task execution,
+> record failure categories, and prioritize fixes using your own measured rates.
 
 ---
 
@@ -467,13 +477,16 @@ flowchart LR
     F[Recurring review finding] --> Q{Can a machine catch it?}
     Q -->|Yes| L[Add lint rule, test, or CodeQL query]
     Q -->|No| I[Add rule to instructions or a skill]
-    L --> G[Green CI enforces it forever]
-    I --> G
-    G --> F2[Finding stops recurring]
+    L --> G[Required CI detects covered violations]
+    I --> R[Advisory guidance plus human review]
+    G --> E[Measure recurrence and maintain coverage]
+    R --> E
+    E -.new evidence.-> F
 ```
 
 **Rule of three:** the third time a human writes the same review comment on an agent PR, it becomes a lint
-rule or an instruction. Anything else is manual labour with extra steps.
+rule or an instruction. Instructions influence behaviour; they do not enforce it. CI only gates the cases
+its checks cover, and only when those checks are required and bypass permissions are controlled.
 
 ---
 
@@ -510,6 +523,9 @@ Mitigations, in order of effectiveness:
    instruction the agent reads.
 
 ### 8.3 Non-negotiable guardrails
+
+These are control objectives, not guarantees from an instruction file. Configure and test required checks,
+review rules, and bypass permissions in the host platform; scanners have coverage limits.
 
 | Guardrail | Mechanism |
 | --- | --- |
@@ -554,16 +570,63 @@ Treat harness changes (a new instruction file, a rewritten skill, a different to
 require evidence:
 
 1. Curate **golden tasks**: 10–30 real, already-solved issues with known-good diffs.
-2. Run them against the candidate harness in a clean sandbox.
+2. Run repeated trials of baseline and candidate in fresh sandboxes; hold the model, tasks, and budgets fixed.
 3. Score automatically where possible — tests pass, checks green, diff scope, cost — and sample-review the rest.
-4. Compare against the previous harness version. Ship the change only if the score improves.
+4. Predefine success, cost, and safety thresholds; compare against the previous harness version and review
+   uncertainty, not just the aggregate score.
 5. Keep the golden set fresh; retire tasks the harness has memorised.
+
+#### Worked evaluation (illustrative, not a repository benchmark)
+
+Consider five solved tasks in a hypothetical application repository. **Baseline B** has generic instructions;
+**candidate C** adds verified setup commands and a repository-specific API map. Keep the model snapshot,
+repository/task revisions, tools, token limit, and 15-minute timeout identical. Alternate B/C run order;
+start each of four trials per task per variant from a clean sandbox (40 runs total).
+Record exact revisions and paired seeds where supported when carrying this out for real.
+
+**Success:** all task acceptance tests and required checks pass, a reviewer accepts the diff scope, and
+there is no safety violation within budget. A timeout or setup failure counts as a failure, not an exclusion.
+Before running, set a provisional adoption gate: at least +10 percentage points in success, no more than
++15% mean cost per attempted run, and no new severe safety failures.
+
+| Task | B successes / trials | C successes / trials |
+| --- | --- | --- |
+| Parser boundary fix | 3/4 | 4/4 |
+| Nullable API result | 2/4 | 3/4 |
+| Documentation link repair | 4/4 | 4/4 |
+| Dependency compatibility patch | 1/4 | 2/4 |
+| Interface rename | 2/4 | 3/4 |
+| **Total** | **12/20 (60%)** | **16/20 (80%)** |
+
+Suppose total model-plus-sandbox cost is **$80 for B / $88 for C**, including failed runs:
+$4.00 / $4.40 per attempt (+10%), or $6.67 / $5.50 per success. Mean elapsed time is
+8 / 9 minutes per attempt. These are synthetic costs, not vendor prices or measured results.
+
+**Failure analysis:** classify each failed attempt by its first blocking cause. B's eight failures are
+four setup errors, three wrong-API edits, and one timeout; C's four are one setup error, two wrong-API edits,
+and one timeout. Assume neither variant has a severe safety failure. This pattern suggests inspecting setup
+logs and API-map coverage next; it does not prove which of C's two changes caused the improvement.
+
+**Decision:** C meets the illustrative gates (+20 points success, +10% cost), so advance it to a larger
+held-out pilot, not a universal rollout. Five task clusters are too few for a strong generalization;
+repeat on fresh tasks, report task-level uncertainty, and ablate setup versus API-map changes.
+Retain redacted run-level records to reproduce totals and investigate regressions.
 
 ### 9.2 What to log
 
-Session ID, task reference, model and harness version, tools invoked with arguments, commands run with exit
-codes, token and time cost, and the final artefact (PR or commit). Logs are what make a bad outcome
-*explainable* rather than *mysterious* — and they are the raw material for evals.
+Session ID, task reference, model and harness version, tool names and **allowlisted, redacted arguments**,
+command outcomes/exit codes, token and time cost, and the final artefact (PR or commit). Prefer structured
+metadata to raw prompts, command strings, or stdout/stderr.
+
+- Redact **before writing or exporting**: omit credentials, authorization headers, environment-variable
+  values, personal data, and proprietary payloads. Do not rely on a post-hoc regex alone.
+- Restrict access by role, encrypt stored logs, and audit access. Never attach raw sensitive logs to a PR.
+- Set a documented retention period and deletion owner (for example, 30 days of redacted diagnostics,
+  subject to organizational/legal needs). Apply expiry to exports and backups too.
+- Keep longer-lived eval evidence only after review, minimization, and explicit approval; record its
+  purpose and expiry. Aggregated metrics often suffice without retaining raw arguments.
+
+Logs can make failures explainable, but collecting more data is not automatically safer or more useful.
 
 ---
 
@@ -786,5 +849,9 @@ and the standing rule: *when you implement a feature, test it*.
 - [Model Context Protocol](https://modelcontextprotocol.io/).
 - [OWASP Top 10 for LLM Applications](https://owasp.org/www-project-top-10-for-large-language-model-applications/).
 - [GitHub code security features](https://docs.github.com/en/code-security) — CodeQL, Dependabot, secret scanning.
+- [GitHub secure use of Actions](https://docs.github.com/en/actions/reference/security/secure-use) —
+  full-SHA pinning and least-privilege workflow permissions.
+- [SWE-agent: Agent-Computer Interfaces Enable Automated Software Engineering](https://arxiv.org/abs/2405.15793)
+  (Yang et al., 2024) — evidence about interface design on specific coding benchmarks, not a universal failure model.
 - [Mermaid](https://mermaid.js.org/) · [D3.js](https://d3js.org/) · [Marp](https://marp.app/) — the diagram,
   visualisation, and presentation toolchain used by these standards.
