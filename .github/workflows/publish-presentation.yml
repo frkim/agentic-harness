@@ -1,7 +1,7 @@
 name: Publish presentation
 
 # Builds the Marp deck (HTML + PDF) and publishes it to GitHub Pages.
-# The deck is served as the site index, with the PDF next to it.
+# The HTML deck is served as the site index, with the PDF next to it.
 
 on:
   push:
@@ -10,11 +10,13 @@ on:
       - 'presentations/**'
       - '.marprc.yml'
       - '.github/workflows/publish-presentation.yml'
+
   pull_request:
     paths:
       - 'presentations/**'
       - '.marprc.yml'
       - '.github/workflows/publish-presentation.yml'
+
   workflow_dispatch:
 
 permissions:
@@ -24,10 +26,16 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+env:
+  NODE_VERSION: '24'
+  MARP_VERSION: '4.5.1'
+  DECK: 'presentations/agentic-harness-l300.md'
+
 jobs:
   build:
     name: Build deck
     runs-on: ubuntu-latest
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -35,40 +43,60 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
-      # Marp CLI runs from the repository root so that .marprc.yml (theme set, html: true) applies.
-      # Chrome is preinstalled on ubuntu-latest and is auto-detected for the PDF export.
+      - name: Install Marp CLI
+        run: npm install --no-save --no-package-lock @marp-team/marp-cli@${{ env.MARP_VERSION }}
+
+      - name: Verify Marp version
+        run: npx marp --version
+
+      - name: Create output directory
+        run: mkdir -p site
+
+      # Marp runs from the repository root so .marprc.yml is automatically applied.
       - name: Build HTML deck
-        run: npx --yes @marp-team/marp-cli@4.5.1 presentations/agentic-harness-l300.md -o site/index.html
+        run: |
+          npx marp "$DECK" \
+            --output site/index.html
 
       - name: Build PDF deck with presenter notes
-        run: npx --yes @marp-team/marp-cli@4.5.1 presentations/agentic-harness-l300.md --pdf --pdf-notes -o site/agentic-harness-l300.pdf
+        run: |
+          npx marp "$DECK" \
+            --pdf \
+            --pdf-notes \
+            --output site/agentic-harness-l300.pdf
 
-      - name: Upload deck as a build artefact
-        uses: actions/upload-artifact@v4
+      - name: Upload deck as build artifact
+        uses: actions/upload-artifact@v7
         with:
           name: agentic-harness-l300
-          path: site
+          path: site/
+          if-no-files-found: error
 
-      - name: Upload GitHub Pages artefact
+      - name: Upload GitHub Pages artifact
         if: github.ref == 'refs/heads/main'
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
-          path: site
+          path: site/
 
   deploy:
     name: Deploy to GitHub Pages
     if: github.ref == 'refs/heads/main'
     needs: build
+
     runs-on: ubuntu-latest
+
     permissions:
       pages: write
       id-token: write
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
-      - name: Deploy
+      - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
